@@ -1,0 +1,448 @@
+
+
+******5*****
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <unistd.h>
+
+#define SIZE 5  // Buffer size
+
+int *buffer;
+int in = 0, out = 0;
+int total_items;
+
+sem_t empty;
+sem_t full;
+pthread_mutex_t mutex;
+
+void* producer(void* arg) {
+    int id = ((int)arg);
+    for (int i = 0; i < total_items; i++) {
+        int item = rand() % 100;
+
+        sem_wait(&empty);
+        pthread_mutex_lock(&mutex);
+
+        buffer[in] = item;
+        printf("[Producer %d] Produced: %d\n", id, item);
+        in = (in + 1) % SIZE;
+
+        pthread_mutex_unlock(&mutex);
+        sem_post(&full);
+
+        sleep(rand() % 2);
+    }
+    pthread_exit(NULL);
+}
+
+void* consumer(void* arg) {
+    int id = ((int)arg);
+    for (int i = 0; i < total_items; i++) {
+        sem_wait(&full);
+        pthread_mutex_lock(&mutex);
+
+        int item = buffer[out];
+        printf("           [Consumer %d] Consumed: %d\n", id, item);
+        out = (out + 1) % SIZE;
+
+        pthread_mutex_unlock(&mutex);
+        sem_post(&empty);
+
+        sleep(rand() % 2);
+    }
+    pthread_exit(NULL);
+}
+
+int main() {
+    int num_producers, num_consumers;
+
+    printf("Enter number of producers: ");
+    scanf("%d", &num_producers);
+    printf("Enter number of consumers: ");
+    scanf("%d", &num_consumers);
+    printf("Enter number of items per producer/consumer: ");
+    scanf("%d", &total_items);
+
+    buffer = (int*)malloc(SIZE * sizeof(int));
+
+    sem_init(&empty, 0, SIZE);
+    sem_init(&full, 0, 0);
+    pthread_mutex_init(&mutex, NULL);
+
+    pthread_t prod_threads[num_producers], cons_threads[num_consumers];
+    int ids[num_producers > num_consumers ? num_producers : num_consumers];
+
+    for (int i = 0; i < num_producers || i < num_consumers; i++) {
+        ids[i] = i + 1;
+        if (i < num_producers)
+            pthread_create(&prod_threads[i], NULL, producer, &ids[i]);
+        if (i < num_consumers)
+            pthread_create(&cons_threads[i], NULL, consumer, &ids[i]);
+    }
+
+    for (int i = 0; i < num_producers; i++)
+        pthread_join(prod_threads[i], NULL);
+    for (int i = 0; i < num_consumers; i++)
+        pthread_join(cons_threads[i], NULL);
+
+    sem_destroy(&empty);
+    sem_destroy(&full);
+    pthread_mutex_destroy(&mutex);
+    free(buffer);
+
+    return 0;
+}
+
+
+
+
+
+******7******
+
+
+
+#include <stdio.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define MAX_READERS 100
+#define MAX_WRITERS 100
+
+int data = 0;  // Shared resource
+int read_count = 0;
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t read_count_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+int read_loops, write_loops;
+
+void* reader(void* arg) {
+    int id = (int)(long)arg;
+
+    for (int i = 0; i < read_loops; i++) {
+        pthread_mutex_lock(&read_count_mutex);
+        read_count++;
+        if (read_count == 1) {
+            pthread_mutex_lock(&mutex);
+        }
+        pthread_mutex_unlock(&read_count_mutex);
+
+        // Reading
+        printf("Reader %d: read data = %d\n", id, data);
+        sleep(rand() % 2);
+
+        pthread_mutex_lock(&read_count_mutex);
+        read_count--;
+        if (read_count == 0) {
+            pthread_mutex_unlock(&mutex);
+        }
+        pthread_mutex_unlock(&read_count_mutex);
+
+        sleep(rand() % 2);
+    }
+
+    pthread_exit(NULL);
+}
+
+void* writer(void* arg) {
+    int id = (int)(long)arg;
+
+    for (int i = 0; i < write_loops; i++) {
+        pthread_mutex_lock(&mutex);
+
+        data++;
+        printf("Writer %d: wrote data = %d\n", id, data);
+        sleep(rand() % 2);
+
+        pthread_mutex_unlock(&mutex);
+        sleep(rand() % 2);
+    }
+
+    pthread_exit(NULL);
+}
+
+int main() {
+    int num_readers, num_writers;
+
+    printf("Enter number of reader threads: ");
+    scanf("%d", &num_readers);
+    printf("Enter number of writer threads: ");
+    scanf("%d", &num_writers);
+
+    if (num_readers > MAX_READERS || num_writers > MAX_WRITERS) {
+        printf("Error: Maximum threads exceeded.\n");
+        return -1;
+    }
+
+    printf("Enter number of read operations per reader: ");
+    scanf("%d", &read_loops);
+    printf("Enter number of write operations per writer: ");
+    scanf("%d", &write_loops);
+
+    pthread_t readers[num_readers], writers[num_writers];
+
+    for (long i = 0; i < num_readers; i++) {
+        pthread_create(&readers[i], NULL, reader, (void*)i);
+    }
+
+    for (long i = 0; i < num_writers; i++) {
+        pthread_create(&writers[i], NULL, writer, (void*)i);
+    }
+
+    for (int i = 0; i < num_readers; i++) {
+        pthread_join(readers[i], NULL);
+    }
+
+    for (int i = 0; i < num_writers; i++) {
+        pthread_join(writers[i], NULL);
+    }
+
+    pthread_mutex_destroy(&mutex);
+    pthread_mutex_destroy(&read_count_mutex);
+
+    return 0;
+}
+
+
+
+
+*******8*********
+
+
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+
+#define MAX_PHILOSOPHERS 10  // Maximum number of philosophers
+
+pthread_mutex_t chopsticks[MAX_PHILOSOPHERS];
+
+void* philosopher(void* num) {
+    int id = (int)num;
+
+    printf("Philosopher %d is thinking...\n", id);
+    sleep(1);
+
+    if (id == MAX_PHILOSOPHERS - 1) {
+        // Last philosopher picks right then left (to avoid deadlock)
+        pthread_mutex_lock(&chopsticks[(id + 1) % MAX_PHILOSOPHERS]);
+        printf("Philosopher %d picked up right chopstick %d\n", id, (id + 1) % MAX_PHILOSOPHERS);
+
+        pthread_mutex_lock(&chopsticks[id]);
+        printf("Philosopher %d picked up left chopstick %d\n", id, id);
+    } else {
+        // Others pick left then right
+        pthread_mutex_lock(&chopsticks[id]);
+        printf("Philosopher %d picked up left chopstick %d\n", id, id);
+
+        pthread_mutex_lock(&chopsticks[(id + 1) % MAX_PHILOSOPHERS]);
+        printf("Philosopher %d picked up right chopstick %d\n", id, (id + 1) % MAX_PHILOSOPHERS);
+    }
+
+    // Eating
+    printf("Philosopher %d is eating...\n", id);
+    sleep(2);
+
+    // Put down chopsticks
+    pthread_mutex_unlock(&chopsticks[id]);
+    pthread_mutex_unlock(&chopsticks[(id + 1) % MAX_PHILOSOPHERS]);
+
+    printf("Philosopher %d finished eating and put down chopsticks.\n\n", id);
+
+    pthread_exit(NULL);
+}
+
+int main() {
+    int NUM;
+
+    // Take user input for the number of philosophers
+    printf("Enter the number of philosophers (2-10): ");
+    scanf("%d", &NUM);
+
+    // Ensure the number is within a valid range
+    if (NUM < 2 || NUM > MAX_PHILOSOPHERS) {
+        printf("Invalid number of philosophers. Please enter a number between 2 and %d.\n", MAX_PHILOSOPHERS);
+        return -1;
+    }
+
+    pthread_t philosophers[NUM];
+    int ids[NUM];
+
+    for (int i = 0; i < NUM; i++) {
+        pthread_mutex_init(&chopsticks[i], NULL);
+    }
+
+    for (int i = 0; i < NUM; i++) {
+        ids[i] = i;
+        pthread_create(&philosophers[i], NULL, philosopher, &ids[i]);
+    }
+
+    for (int i = 0; i < NUM; i++) {
+        pthread_join(philosophers[i], NULL);
+    }
+
+    for (int i = 0; i < NUM; i++) {
+        pthread_mutex_destroy(&chopsticks[i]);
+    }
+
+    return 0;
+}
+
+
+
+********6*****
+
+
+
+
+#include <stdio.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define MAX_ITEM 100
+
+int *buffer;
+int *input_buffer;
+int buffer_size;
+int num_producers;
+int num_consumers;
+int total_items;
+
+int in = 0;
+int out = 0;
+int produced_count = 0;
+int consumed_count = 0;
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t full = PTHREAD_COND_INITIALIZER;
+pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
+
+// Producer function
+void* producer(void* arg) {
+    int producer_id = (int)(long)arg;
+
+    while (1) {
+        pthread_mutex_lock(&mutex);
+        if (produced_count >= total_items) {
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+
+        // Wait if buffer is full
+        while ((in + 1) % buffer_size == out) {
+            pthread_cond_wait(&empty, &mutex);
+        }
+
+        if (produced_count >= total_items) {
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+
+        int item = input_buffer[produced_count];
+        buffer[in] = item;
+        printf("Producer %d produced item: %d\n", producer_id, item);
+        in = (in + 1) % buffer_size;
+        produced_count++;
+
+        pthread_cond_signal(&full);
+        pthread_mutex_unlock(&mutex);
+
+        sleep(rand() % 2);
+    }
+
+    pthread_exit(NULL);
+}
+
+// Consumer function
+void* consumer(void* arg) {
+    int consumer_id = (int)(long)arg;
+
+    while (1) {
+        pthread_mutex_lock(&mutex);
+        if (consumed_count >= total_items) {
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+
+        // Wait if buffer is empty
+        while (in == out) {
+            pthread_cond_wait(&full, &mutex);
+        }
+
+        if (consumed_count >= total_items) {
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+
+        int item = buffer[out];
+        printf("Consumer %d consumed item: %d\n", consumer_id, item);
+        out = (out + 1) % buffer_size;
+        consumed_count++;
+
+        pthread_cond_signal(&empty);
+        pthread_mutex_unlock(&mutex);
+
+        sleep(rand() % 2);
+    }
+
+    pthread_exit(NULL);
+}
+
+int main() {
+    printf("Enter buffer size: ");
+    scanf("%d", &buffer_size);
+
+    printf("Enter number of producers: ");
+    scanf("%d", &num_producers);
+
+    printf("Enter number of consumers: ");
+    scanf("%d", &num_consumers);
+
+    printf("Enter total number of items to produce: ");
+    scanf("%d", &total_items);
+
+    buffer = (int*)malloc(buffer_size * sizeof(int));
+    input_buffer = (int*)malloc(total_items * sizeof(int));
+
+    printf("Enter %d items to produce:\n", total_items);
+    for (int i = 0; i < total_items; i++) {
+        printf("Item %d: ", i + 1);
+        scanf("%d", &input_buffer[i]);
+    }
+
+    pthread_t producers[num_producers], consumers[num_consumers];
+
+    for (long i = 0; i < num_producers; i++) {
+        pthread_create(&producers[i], NULL, producer, (void*)i);
+    }
+
+    for (long i = 0; i < num_consumers; i++) {
+        pthread_create(&consumers[i], NULL, consumer, (void*)i);
+    }
+
+    for (int i = 0; i < num_producers; i++) {
+        pthread_join(producers[i], NULL);
+    }
+
+    for (int i = 0; i < num_consumers; i++) {
+        pthread_join(consumers[i], NULL);
+    }
+
+    free(buffer);
+    free(input_buffer);
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&full);
+    pthread_cond_destroy(&empty);
+
+    return 0;
+}
+
