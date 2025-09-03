@@ -1,0 +1,63 @@
+\documentclass[12pt,oneside]{report}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{lmodern}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+
+    % Project Title
+    {\LARGE \bfseries PNEUMONIA -- A THREAT TO THOUSAND LIVES \par}
+    \vspace{1.2cm}
+
+    % Submission statement
+    {\normalsize
+    A Dissertation Submitted \\
+    in ENG-3217: Technical Writing \& Presentation Lab in Fulfillment of the Requirements \\
+    for the Degree of
+    }
+    \vspace{0.4cm}
+
+    % Degree
+    {\large \bfseries Bachelor OF Science \par}
+    \vspace{0.2cm}
+
+    % Department
+    in {\bfseries Computer Science \& Engineering} \par
+    \vspace{1cm}
+
+    % Submitted by
+    {\normalsize by \par}
+    \vspace{0.2cm}
+
+    {\Large \bfseries Azizul Hakim Topo \par}
+    {\normalsize (Reg. No. 1020) \par}
+    \vspace{1.8cm}
+
+    % Logo
+    \includegraphics[width=0.35\textwidth]{image_1.png} \par
+    \vspace{0.3cm}
+
+    {\LARGE \bfseries Faridpur Engineering College \par}
+    {\large Faridpur \par}
+    \vspace{1.8cm}
+
+    % Institute and Department
+    {\itshape
+    to \\[0.15cm]
+    {\Large \bfseries Md. Tuhin Reza } \\
+    Assistant Professor, Department of Computer Science \& Engineering \\
+    Faridpur Engineering College \\
+    Bangladesh \\
+    Faridpur - 7800
+    }
+    \vspace{0.8cm}
+
+   
+
+\end{titlepage}
+\end{document}
